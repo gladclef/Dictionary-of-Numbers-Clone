@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "name": "Dictionary of Numbers Clone",
+  "version": "1.0",
+
+  "description": "Adds a solid red border to all webpages matching mozilla.org.",
+
+  "icons": {
+    "48": "icons/ic_book_black_48dp_1x.png",
+    "96": "ic_book_black_48dp_2x.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["Dictionary of Numbers Clone.js"]
+    }
+  ]
+}
