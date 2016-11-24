@@ -17,38 +17,102 @@ var whiteSpaceOrMinusSignRegex = /\s-?/g;
 var wordRegex = /[a-z][A-Z]\//g;
 var defaultSkipAllowance = 0; // for unitWordTest
 
-var allUnits = null;
-function getUnits()
+var cachedSimpleUnits = null;
+function getSimpleUnits()
 {
 	// caching for efficiency
-	if (allUnits != null)
+	if (cachedSimpleUnits != null)
 	{
-		return allUnits;
+		return cachedSimpleUnits;
 	}
 
-	// calculate new units stuff
-	var units = ["acre", "attosecond", "average Julian calendar year", "B", "bar", "Bar", "byte",
-	             "ca", "centiare", "centigram", "centiliter", "centimeter", "cg", "cl", "cm",
-	             "cubic decimeter", "cubic inch", "cubic yard", "cwt", "dm", "dry pint", "EB",
-	             "exabyte", "Fahrenheit", "foot", "ft", "g", "gallon us", "GHz", "gigabyte",
-	             "Gigahertz", "grad", "Grad", "grain", "gram", "ha", "hectare", "Hectopascal",
-	             "hour", "hPa", "in", "kcal", "kg", "KHz", "Kilocalorie", "kilogram", "Kilohertz",
-	             "Kilojoule", "Kilowatt-hour", "KJ", "knot", "kWh", "lb", "leap year", "liter",
-	             "m", "MB", "mbar", "megabyte", "meter", "microgramicrosecond", "mile", "Millibar",
-	             "Minute of arc", "nautical mile", "nautical mile/h", "Pascal", "petabyte", "picosecond",
-	             "pint", "pound avoirdupois", "Pounds per square inch", "Psi", "pt", "Ra", "Rankine",
-	             "Reaumur", "s", "second", "Second of arc", "short hundredweight", "short ton",
-	             "square centimeter", "square foot", "square inch", "square meter", "stone", "TB",
-	             "terabyte", "Therm amricain", "thm", "ton", "week", "yd", "zettabyte"];
-	units = units.sort(function(a, b)
+	// some simple units, forgot where I got them
+	var units = [ "acre", "attosecond", "average Julian calendar year", "B", "bar", "Bar", "byte", "ca", "candela", "candlestick", "centiare", "centigram", "centiliter", "centimeter", "cg", "cl", "cm", "cubic decimeter", "cubic inch", "cubic yard", "cwt", "dm", "dry pint", "EB", "exabyte", "Fahrenheit", "foot", "ft", "g", "gallon us", "GHz", "gigabyte", "Gigahertz", "grad", "Grad", "grain", "gram", "ha", "hectare", "Hectopascal", "hour", "hPa", "in", "kcal", "kg", "KHz", "Kilocalorie", "kilogram", "Kilohertz", "Kilojoule", "Kilowatt-hour", "KJ", "knot", "kWh", "lb", "leap year", "liter", "lumen", "m", "MB", "mbar", "megabyte", "meter", "microgramicrosecond", "mile", "Millibar", "Minute of arc", "nautical mile", "nautical mile/h", "Pascal", "petabyte", "picosecond", "pint", "pound avoirdupois", "Pounds per square inch", "Psi", "pt", "Ra", "Rankine", "Reaumur", "s", "second", "Second of arc", "short hundredweight", "short ton", "square centimeter", "square foot", "square inch", "square meter", "stone", "TB", "terabyte", "Therm amricain", "thm", "ton", "week", "yd", "zettabyte" ];
+
+	// include all units
+	cachedSimpleUnits = [];
+	cachedSimpleUnits = cachedSimpleUnits.concat(units);
+
+	cachedSimpleUnits = units.sort(function(a, b)
 	{
 		return a.length - b.length;
 	});
-	allUnits = units.map(function(a)
+	cachedSimpleUnits = units.map(function(a)
 	{
 		return a.toLowerCase();
 	});
-	return allUnits;
+	cachedSimpleUnits = cachedSimpleUnits.filter(onlyUnique);
+	return cachedSimpleUnits;
+}
+
+var cachedBaseUnits = null;
+function getBaseUnits()
+{
+	// caching for efficiency
+	if (cachedBaseUnits != null)
+	{
+		return cachedBaseUnits;
+	}
+
+	// https://en.wikipedia.org/wiki/International_System_of_Units
+	var siUnits = [ "A", "ampere", "becquerel", "Bq", "c", "candela", "cd", "celsiuS", "coulomb", "degree", "f", "farad", "gray", "Gy", "h", "henry", "hertz", "Hz", "j", "joule", "K", "kat", "katal", "kelvin", "kg", "kilogram", "lm", "lumen", "lux", "lx", "m", "metre", "mol", "mole", "n", "newton", "ohm", "Pa", "pascal", "rad", "radian", "s", "s", "second", "siemens", "sievert", "sr", "steradian", "Sv", "t", "tesla", "v", "volt", "w", "watt", "Wb", "weber" ];
+
+	// include all units
+	cachedBaseUnits = [];
+	cachedBaseUnits = cachedBaseUnits.concat(siUnits);
+
+	cachedBaseUnits = units.sort(function(a, b)
+	{
+		return a.length - b.length;
+	});
+	cachedBaseUnits = units.map(function(a)
+	{
+		return a.toLowerCase();
+	});
+	cachedBaseUnits = cachedBaseUnits.filter(onlyUnique);
+	return cachedBaseUnits;
+}
+
+var cachedAllUnits = null;
+function getAllUnits()
+{
+	// caching for efficiency
+	if (cachedAllUnits != null)
+	{
+		return cachedAllUnits;
+	}
+
+	cachedAllUnits = [];
+	cachedAllUnits = cachedAllUnits.concat(getSimpleUnits());
+	cachedAllUnits = cachedAllUnits.concat(getBaseUnits());
+
+	cachedAllUnits = cachedAllUnits.filter(onlyUnique);
+
+	return cachedAllUnits;
+}
+
+var cachedPrefixes = null;
+function getPrefixes()
+{
+	// caching for efficiency
+	if (cachedPrefixes != null)
+	{
+		return cachedPrefixes;
+	}
+
+	// https://en.wikipedia.org/wiki/International_System_of_Units
+	var prefixes = [ "deca", "hecto", "kilo", "mega", "giga", "tera", "peta", "exa", "zetta", "yotta", "da", "h", "k", "M", "G", "T", "P", "E", "Z", "Y" ];
+
+	cachedPrefixes = [];
+	cachedPrefixes = cachedPrefixes.concat(prefixes);
+	
+	cachedPrefixes = units.map(function(a)
+	{
+		return a.toLowerCase();
+	});
+	cachedPrefixes = cachedPrefixes.filter(onlyUnique);
+
+	return cachedPrefixes;
 }
 
 /**
@@ -102,7 +166,7 @@ function wholeWordTest(haystack, needle)
 	return false;
 }
 
-var lastUnitTestHaystackToLower = null;
+var cachedUnitWordTestModifiedText = null;
 /**
  * Determine if the first word in the given haystack is a unit word.
  *
@@ -113,18 +177,20 @@ var lastUnitTestHaystackToLower = null;
 function unitWordTest(haystack, skipAllowance)
 {
 	// caching for efficiency
-	if (lastUnitTestHaystackToLower == null ||
-		lastUnitTestHaystackToLower[0] != haystack)
+	if (cachedUnitWordTestModifiedText == null ||
+		cachedUnitWordTestModifiedText[0] != haystack)
 	{
-		lastUnitTestHaystackToLower = [
+		cachedUnitWordTestModifiedText = [
 			haystack,
 			haystack.toLowerCase()
 		];
+		cachedUnitWordTestModifiedText[0] = cachedUnitWordTestModifiedText[0]
+		.trim();
 	}
 
 	// try to match a units word in the haystack
 	wordRegex.lastIndex = 0;
-	var wordMatches = lastUnitTestHaystackToLower[1].match(wordRegex);
+	var wordMatches = cachedUnitWordTestModifiedText[1].match(wordRegex);
 	if (wordMatches && wordMatches.length > 0)
 	{
 		var nextWord = wordMatches[0];
