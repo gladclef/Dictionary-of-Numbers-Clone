@@ -12,7 +12,7 @@
 
   "content_scripts": [
     {
-      "matches": ["*://*/*"],
+      "matches": ["*://*/*", "file:///*/*"],
       "js": ["Dictionary of Numbers Clone.js"]
     }
   ]

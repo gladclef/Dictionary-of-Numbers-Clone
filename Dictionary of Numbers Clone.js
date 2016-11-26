@@ -1,23 +1,32 @@
-// /-?(?:\.|,)?\d+(?:(?:\.|,)\d+)?/g
-// /                                 start of regex
-//  -?                               numbers can optionally start with a minus sign "-"
-//    (?:    )?                      optional non-capture group
-//       \.|,                        number can start with a comma or period (eg ".123")
-//             \d+                   match one or more digits
-//                (?:           )?   optional non-capture group
-//                   (?:    )        non-capture group
-//                      \.|,         comma or period
-//                           \d+     match one or more digits
-//                                /  end of regex
-//                                 g match all occurances in the string (not just the first occurance)
+// /-?\$?(?:\.|,)?\d+(?:(?:\.|,)\d+)?/g
+// /                                    start of regex
+//  -?                                  numbers can optionally start with a minus sign "-"
+//    \$?                               numbers can optionally start with a currency symbol
+//       (?:    )?                      optional non-capture group
+//          \.|,                        number can start with a comma or period (eg ".123")
+//                \d+                   match one or more digits
+//                   (?:           )?   optional non-capture group
+//                      (?:    )        non-capture group
+//                         \.|,         comma or period
+//                              \d+     match one or more digits
+//                                   /  end of regex
+//                                    g match all occurances in the string (not just the first occurance)
 // Note: this will also capture values such as ".123,456"
-var numRegex = /-?(?:\.|,)?\d+(?:(?:\.|,)\d+)?/g;
-var whiteSpaceRegex = /\s/g;
-var whiteSpaceOrMinusSignRegex = /\s-?/g;
-var wordRegex = /[a-z][A-Z]\//g;
+var currencyRegex = /[\$]/g;
+var numbersMaybeWithCurrencyRegex = /-?\$?(?:\.|,)?\d+(?:(?:\.|,)\d+)?/g;
+var whiteSpaceOrPunctuationRegex = /[\s\.!\?'"]/g;
+var whiteSpaceOrMinusSignRegex = /[\s-]+/g;
+var wordRegex = /[a-zA-Z\/]+/g;
 var defaultSkipAllowance = 0; // for unitWordTest
+var ignoreTags = [ "script", "head", "meta", "style" ];
 
 var cachedSimpleUnits = null;
+/**
+ * Units that just match. No special tricks.
+ * 
+ * @see #getAllUnits()
+ * @see #getBaseUnits()
+ */
 function getSimpleUnits()
 {
 	// caching for efficiency
@@ -33,19 +42,26 @@ function getSimpleUnits()
 	cachedSimpleUnits = [];
 	cachedSimpleUnits = cachedSimpleUnits.concat(units);
 
-	cachedSimpleUnits = units.sort(function(a, b)
+	cachedSimpleUnits.sort(function(a, b)
 	{
 		return a.length - b.length;
 	});
-	cachedSimpleUnits = units.map(function(a)
+	cachedSimpleUnits = cachedSimpleUnits.map(function(a)
 	{
 		return a.toLowerCase();
 	});
+	cachedSimpleUnits = cachedSimpleUnits.concat(cachedSimpleUnits.map(appendLetterS));
 	cachedSimpleUnits = cachedSimpleUnits.filter(onlyUnique);
 	return cachedSimpleUnits;
 }
 
 var cachedBaseUnits = null;
+/**
+ * These unit strings can be used in combination with prefixes.
+ * 
+ * @see #getAllUnits()
+ * @see #getSimpleUnits()
+ */
 function getBaseUnits()
 {
 	// caching for efficiency
@@ -61,19 +77,23 @@ function getBaseUnits()
 	cachedBaseUnits = [];
 	cachedBaseUnits = cachedBaseUnits.concat(siUnits);
 
-	cachedBaseUnits = units.sort(function(a, b)
+	cachedBaseUnits.sort(function(a, b)
 	{
 		return a.length - b.length;
 	});
-	cachedBaseUnits = units.map(function(a)
+	cachedBaseUnits = cachedBaseUnits.map(function(a)
 	{
 		return a.toLowerCase();
 	});
+	cachedBaseUnits = cachedBaseUnits.concat(cachedBaseUnits.map(appendLetterS));
 	cachedBaseUnits = cachedBaseUnits.filter(onlyUnique);
 	return cachedBaseUnits;
 }
 
 var cachedAllUnits = null;
+/**
+ * A combination of the units from {@link #getSimpleUnits()} and {@link #getBaseUnits()}.
+ */
 function getAllUnits()
 {
 	// caching for efficiency
@@ -92,6 +112,11 @@ function getAllUnits()
 }
 
 var cachedPrefixes = null;
+/**
+ * Prefixes to prepend to values from {@link #getBaseUnits()}.
+ * 
+ * @see #getPrefixesByLength()
+ */
 function getPrefixes()
 {
 	// caching for efficiency
@@ -106,13 +131,49 @@ function getPrefixes()
 	cachedPrefixes = [];
 	cachedPrefixes = cachedPrefixes.concat(prefixes);
 	
-	cachedPrefixes = units.map(function(a)
+	cachedPrefixes = cachedPrefixes.map(function(a)
 	{
 		return a.toLowerCase();
+	});
+	cachedBaseUnits.sort(function(a, b)
+	{
+		return a.length - b.length;
 	});
 	cachedPrefixes = cachedPrefixes.filter(onlyUnique);
 
 	return cachedPrefixes;
+}
+
+var cachedPrefixesByLength = null;
+/**
+ * @return The values from {@link #getPrefixes()}, sorted into different arrays according to length.
+ */
+function getPrefixesByLength()
+{
+	// caching for efficiency
+	if (cachedPrefixesByLength != null)
+	{
+		return cachedPrefixesByLength;
+	}
+
+	cachedPrefixesByLength = [];
+	var prefixes = getPrefixes();
+	prefixes.sort(function(a, b) {
+		return a.length - b.length;
+	});
+	var lastLength = 0;
+	for (var i = 0; i < prefixes.length; i++)
+	{
+		var prefix = prefixes[i];
+		if (prefix.length > lastLength)
+		{
+			cachedPrefixesByLength.push([]);
+			lastLength = prefix.length;
+		}
+		cachedPrefixesByLength[cachedPrefixesByLength.length - 1].push(prefix);
+	}
+
+	return cachedPrefixesByLength;
 }
 
 /**
@@ -123,8 +184,25 @@ function onlyUnique(value, index, self) {
 }
 
 /**
+ * Returns a as (a + "s") for any a that doesn't already end in "s".
+ * <p>
+ * Useful in the use case of Array.concat(Array.map(...)).filter(onlyUnique).
+ */
+function appendLetterS(a)
+{
+	return (a.charAt(a.length - 1) == "s") ? a : a + "s";
+}
+
+/**
  * Test the given haystack to determine if the given needle is a whole word,
  * or just part of another word.
+ * <p>
+ * Definition of a whole word is:
+ * 1a. needle is the first thing in the haystack, or
+ * 1b. needle follows white space
+ * 2a. needle is the last thing in the haystack
+ * 2b. needle immediately preceeds white space
+ * 2c. needle is followed by a unit, according to {@link unitWordTest(String, int, int)}
  *
  * @param haystack String to search in.
  * @param needle String to search for.
@@ -135,18 +213,17 @@ function wholeWordTest(haystack, needle)
 	var tIndex = haystack.indexOf(needle);
 	var unit = null;
 
-	// immediately preceeds white space, end of text, or one of the units words
-	if (haystack.length === tIndex + needle.length) {
-		return true;
-	}
-	var nextChar = haystack.charAt(tIndex + needle.length);
-	whiteSpaceRegex.lastIndex = 0;
-	if (!whiteSpaceRegex.test(nextChar))
-	{
-		unit = unitWordTest(haystack.substr(tIndex + needle.length), defaultSkipAllowance);
-		if (unit == null)
+	// immediately preceeds white space, end of text, punctuation, or one of the units words
+	if (haystack.length !== tIndex + needle.length) { // end of text
+		var nextChar = haystack.charAt(tIndex + needle.length);
+		whiteSpaceOrPunctuationRegex.lastIndex = 0;
+		if (!whiteSpaceOrPunctuationRegex.test(nextChar)) // white space or punctuation
 		{
-			return false;
+			unit = unitWordTest(haystack, tIndex + needle.length, defaultSkipAllowance);  // unit word
+			if (unit == null)
+			{
+				return false;
+			}
 		}
 	}
 
@@ -171,10 +248,11 @@ var cachedUnitWordTestModifiedText = null;
  * Determine if the first word in the given haystack is a unit word.
  *
  * @param haystack String to search in.
+ * @param startIndex The index to start searching at.
  * @param skipAllowance The number of words that can be skipped.
  * @return The next unit word, or null if the next word is not a unit word.
  */
-function unitWordTest(haystack, skipAllowance)
+function unitWordTest(haystack, startIndex, skipAllowance)
 {
 	// caching for efficiency
 	if (cachedUnitWordTestModifiedText == null ||
@@ -182,27 +260,57 @@ function unitWordTest(haystack, skipAllowance)
 	{
 		cachedUnitWordTestModifiedText = [
 			haystack,
-			haystack.toLowerCase()
+			haystack
 		];
-		cachedUnitWordTestModifiedText[0] = cachedUnitWordTestModifiedText[0]
-		.trim();
+		cachedUnitWordTestModifiedText[1] = cachedUnitWordTestModifiedText[1].toLowerCase();
 	}
 
-	// try to match a units word in the haystack
-	wordRegex.lastIndex = 0;
-	var wordMatches = cachedUnitWordTestModifiedText[1].match(wordRegex);
+	// string to operate upon
+	var subWord = cachedUnitWordTestModifiedText[1].substr(startIndex);
+	if (!subWord || subWord.length == 0)
+	{
+		return null;
+	}
+
+	// find the next word
+	wordRegex.lastIndex = startIndex;
+	var wordMatches = subWord.match(wordRegex);
+	var nextWord = null;
 	if (wordMatches && wordMatches.length > 0)
 	{
-		var nextWord = wordMatches[0];
-		if (getUnits().indexOf(nextWord) < 0)
-		{
-			if (skipAllowance > 0)
-			{
-				return unitWordTest(haystack.substr(nextWord.length), skipAllowance);
-			}
-			return null;
-		}
+		nextWord = wordMatches[0];
+	}
+	else
+	{
+		return null;
+	}
+
+	// try to match an exact unit word against the next word
+	if (getAllUnits().indexOf(nextWord) > 0)
+	{
 		return nextWord;
+	}
+
+	// try to match prefix + base units against the next word
+	var prefixesByLength = getPrefixesByLength();
+	for (var i = 0; i < prefixesByLength.length; i++)
+	{
+		var prefixes = prefixesByLength[prefixesByLength.length - 1 - i];
+		var preWord = nextWord.substr(0, prefixes[0].length);
+		if (prefixes.indexOf(preWord) >= 0)
+		{
+			var remainingWord = nextWord.substr(preWord.length);
+			if (getBaseUnits().indexOf(remainingWord) >= 0)
+			{
+				return nextWord;
+			}
+		}
+	}
+	
+	// try to match the next next word
+	if (skipAllowance > 0)
+	{
+		return unitWordTest(haystack, startIndex + nextWord.length, skipAllowance);
 	}
 
 	return null;
@@ -216,7 +324,7 @@ function findNumbers(element)
 	{
 		element = document;
 	}
-	if (element.tagName != undefined && element.tagName.toLowerCase() == "script")
+	if (element.tagName != undefined && ignoreTags.indexOf(element.tagName.toLowerCase()) >= 0)
 	{
 		return null;
 	}
@@ -227,25 +335,36 @@ function findNumbers(element)
 		{
 			return null;
 		}
-		numRegex.lastIndex = 0;
-		var matches = text.match(numRegex);
-		if (matches == null || matches == undefined || matches.length == 0)
+		numbersMaybeWithCurrencyRegex.lastIndex = 0;
+		var numberMatches = text.match(numbersMaybeWithCurrencyRegex);
+		if (numberMatches == null || numberMatches == undefined || numberMatches.length == 0)
 		{
 			return null;
 		}
-		matches = matches.filter(onlyUnique);
+		numberMatches = numberMatches.filter(onlyUnique);
 
 		// verify the match is its own word and maybe associated units
-		matches = matches.filter(function(value, index, self)
+		var unit = null;
+		numberMatches = numberMatches.filter(function(value, index, self)
 		{
-			return wholeWordTest(text, value);
+			var wholeWordTestResults = wholeWordTest(text, value);
+			if (wholeWordTestResults === false || wholeWordTestResults === null)
+			{
+				return false;
+			}
+			if (wholeWordTestResults === true)
+			{
+				return true;
+			}
+			unit = wholeWordTestResults;
+			return true;
 		});
 
-		if (matches.length == 0)
+		if (numberMatches.length == 0)
 		{
 			return null;
 		}
-		return [[element].concat(matches)];
+		return [[element, numberMatches, unit]];
 	}
 	if (element.childNodes != null && element.childNodes != undefined && element.childNodes.length > 0)
 	{
