@@ -13,9 +13,11 @@
 //                                    g match all occurances in the string (not just the first occurance)
 // Note: this will also capture values such as ".123,456"
 var numbersMaybeWithCurrencyRegex = /-?\$?(?:\.|,)?\d+(?:(?:\.|,)\d+)?/g;
+var numbersInRatioRegex = /-?\d+\/\d+/g;
 var whiteSpaceRegex = /[\s]/g;
+var multiWhiteSpaceRegex = /[\s]+/g;
 var punctuationRegex = /[\.!\?"']/g;
-var whiteSpaceOrMinusSignRegex = /[\s-]+/g;
+var numBoundaryRegex = /[\s"\.\\\(\)"',;<>~!*+=\[\]\{\}`\?]-?/g;
 var wordRegex = /[a-zA-Z\/]+/g;
 var twoWordRegex = /[a-zA-Z\/]+[\s]+[a-zA-Z\/]+/g;
 var defaultSkipAllowance = 0; // for unitWordTest
@@ -75,16 +77,19 @@ function getSimpleUnits()
 		return cachedSimpleUnits;
 	}
 
-	// http://converticious.com/units-list.php
-	var units = [ "acre", "attosecond", "average Julian calendar year", "byte", "ca", "candela", "candlestick", "centiare", "centigram", "centiliter", "centimeter", "cg", "cl", "cm", "cubic decimeter", "cubic inch", "cubic yard", "cwt", "degrees Fahrenheit", "dry pint", "Fahrenheit", "foot", "ft", "g", "gallon us", "grad", "Grad", "grain", "gram", "ha", "hectare", "Hectopascal", "hour", "hPa", "in", "kcal", "Kilocalorie", "kilogram", "Kilohertz", "Kilojoule", "Kilowatt-hour", "KJ", "knot", "kWh", "lb", "leap year", "liter", "lumen", "microgramicrosecond", "mile", "Minute of arc", "nautical mile", "nautical mile/h", "Pascal", "picosecond", "pint", "pound avoirdupois", "Pounds per square inch", "Psi", "pt", "Ra", "Rankine", "Reaumur", "Second of arc", "short hundredweight", "short ton", "square centimeter", "square foot", "square inch", "square meter", "stone", "Therm amricain", "thm", "ton", "week", "yd", ];
+	// http://converticious.com/units-list.php, heavily modified
+	var units = [ "acre", "attosecond", "average Julian calendar year", "byte", "calendar year", "candlestick", "centiare", "centigram", "centiliter", "centimeter", "cg", "cm", "degrees Fahrenheit", "dry pint", "Fahrenheit", "foot", "ft", "gallon us", "grad", "Grad", "ha", "hectare", "Hectopascal", "hour", "hPa", "in", "kcal", "Kilocalorie", "KJ", "knot", "kWh", "lb", "leap year", "liter", "lumen", "microgramicrosecond", "mile", "Minute of arc", "nautical mile", "nautical mile/h", "picosecond", "pint", "pound avoirdupois", "Pounds per square inch", "Psi", "Ra", "Rankine", "Reaumur", "Second of arc", "short hundredweight", "short ton", "square centimeter", "stone", "Therm amricain", "thm", "ton", "week", "yd" ];
+	var unitsSquareCubic = [ "cubic centimeter", "cubic decimeter", "cubic foot", "cubic inch", "cubic meter", "cubic mile", "cubic kilometer", "cubic yard", "cu cm", "cu dm", "cu ft", "cu in", "cu m", "cu km", "cu yd", "square decimeter", "square foot", "square inch", "square meter", "square mile", "square kilometer", "square yard", "sq dm", "sq ft", "sq in", "sq m", "sq km", "sq yd" ];
 	// from my head
 	var head = [ "adult", "child", "children", "dollar", "euro", "person", "people", "pound" ];
 	// deemed too difficult to match
-	var rejects = [ "dm" ];
+	var rejects = [ "cl", "dm", "grain", "pt" ];
 
 	// include all units
 	cachedSimpleUnits = [];
 	cachedSimpleUnits = cachedSimpleUnits.concat(units);
+	cachedSimpleUnits = cachedSimpleUnits.concat(unitsSquareCubic);
+	cachedSimpleUnits = cachedSimpleUnits.concat(head);
 
 	cachedSimpleUnits = cachedSimpleUnits.map(function(a)
 	{
@@ -96,7 +101,6 @@ function getSimpleUnits()
 	{
 		return b.length - a.length;
 	});
-	console.log(cachedSimpleUnits);
 	return cachedSimpleUnits;
 }
 
@@ -115,16 +119,19 @@ function getBaseUnits()
 		return cachedBaseUnits;
 	}
 
-	// https://en.wikipedia.org/wiki/International_System_of_Units
-	var siUnits = [ "ampere", "ANSI lumens", "becquerel", "byte", "candela", "celsiuS", "coulomb", "degree", "degrees celsiuS", "farad", "gram", "gray", "henry", "hertz", "joule", "katal", "kelvin", "kilogram", "lumen", "metre", "mole", "newton", "ohm", "pascal", "peak lumens", "radian", "second", "siemens", "sievert", "steradian", "tesla", "volt", "watt", "weber" ];
+	// https://en.wikipedia.org/wiki/International_System_of_Units, heavily modified
+	var siUnits = [ "amp", "ampere", "ANSI lumens", "becquerel", "byte", "candela", "celsiuS", "coulomb", "degree", "degrees celsiuS", "farad", "gram", "gray", "henry", "hertz", "joule", "katal", "kelvin", "kilogram", "lumen", "metre", "mole", "newton", "ohm", "pascal", "peak lumens", "radian", "second", "siemens", "sievert", "steradian", "tesla", "volt", "watt", "weber" ];
+	// from my head
+	var head = [ "watt-hour" ];
 	// same as above, but don't tack on the extra "s"
-	var siUnitsNoS = [ "A", "b", "Bq", "cd", "g", "Gy", "h", "Hz", "j", "kat", "kg", "lm", "lux", "lx", "mol", "n", "Pa", "rad", "sr", "Sv", "v", "w", "Wb" ];
+	var siUnitsNoS = [ "b", "Bq", "cd", "g", "Gy", "Hz", "j", "kat", "kg", "lm", "lux", "lx", "m", "mol", "n", "Pa", "rad", "sr", "Sv", "v", "w", "Wb", "Wh" ];
 	// deemed too difficult to match
-	var rejects = [ "A", "c", "f", "K", "m", "s", "s", "t" ];
+	var rejects = [ "A", "c", "f", "h", "K", "s", "s", "t" ];
 
 	// include all units
 	cachedBaseUnits = [];
 	cachedBaseUnits = cachedBaseUnits.concat(siUnits);
+	cachedBaseUnits = cachedBaseUnits.concat(head);
 	cachedBaseUnits = cachedBaseUnits.concat(siUnitsNoS);
 
 	cachedBaseUnits = cachedBaseUnits.map(function(a)
@@ -139,7 +146,6 @@ function getBaseUnits()
 	{
 		return b.length - a.length;
 	});
-	console.log(cachedBaseUnits);
 	return cachedBaseUnits;
 }
 
@@ -179,7 +185,9 @@ function getPrefixes()
 	}
 
 	// https://en.wikipedia.org/wiki/International_System_of_Units
-	var prefixes = [ "deca", "hecto", "kilo", "mega", "giga", "tera", "peta", "exa", "zetta", "yotta", "da", "h", "k", "M", "G", "T", "P", "E", "Z", "Y" ];
+	var prefixes = [ "deca", "hecto", "kilo", "mega", "giga", "tera", "peta", "exa", "zetta", "yotta", "h", "k", "M", "G", "T", "P", "Z", "Y" ];
+	// deemed too difficult to match
+	var rejects = [ "da", "E" ];
 
 	cachedPrefixes = [];
 	cachedPrefixes = cachedPrefixes.concat(prefixes);
@@ -252,10 +260,21 @@ function unitWordTest(haystack, startIndex, skipAllowance)
 	}
 
 	// string to operate upon
-	var subWord = cachedUnitWordTestModifiedText[1].substr(startIndex);
-	if (!subWord || subWord.length == 0)
+	var subWord1 = cachedUnitWordTestModifiedText[1].substr(startIndex);
+	if (!subWord1 || subWord1.length == 0)
 	{
 		return null;
+	}
+	multiWhiteSpaceRegex.lastIndex = 0;
+	var multiWhiteSpaceMatches = subWord1.match(multiWhiteSpaceRegex);
+	var subWord2 = subWord1;
+	if (multiWhiteSpaceMatches && multiWhiteSpaceMatches.length > 0 && subWord1.indexOf(multiWhiteSpaceMatches[0]) == 0)
+	{
+		subWord2 = subWord1.substr(multiWhiteSpaceMatches[0].length);
+		if (!subWord2 || subWord2.length == 0)
+		{
+			return null;
+		}
 	}
 
 	// find the next word
@@ -264,11 +283,15 @@ function unitWordTest(haystack, startIndex, skipAllowance)
 	{
 		var wordRegexInstance = regexes[regexIndex];
 		wordRegexInstance.lastIndex = startIndex;
-		var wordMatches = subWord.match(wordRegexInstance);
+		var wordMatches = subWord2.match(wordRegexInstance);
 
 		var nextWord = null;
 		if (wordMatches && wordMatches.length > 0)
 		{
+			if (subWord2.indexOf(wordMatches[0]) !== 0)
+			{
+				continue;
+			}
 			nextWord = wordMatches[0];
 		}
 		else
@@ -319,19 +342,27 @@ function unitWordTest(haystack, startIndex, skipAllowance)
  * <p>
  * Definition of a whole word is:
  * 1a. needle is the first thing in the haystack, or
- * 1b. needle follows white space
+ * 1b. needle follows a number boundary
  * 2a. needle immediately preceeds white space
  * 2b. needle is followed by a unit, according to {@link unitWordTest(String, int, int)}
  * 2c. needle starts with a currency symbol and preceeds punctuation
  *
  * @param haystack String to search in.
  * @param needle String to search for.
- * @return True if a whole word, false if part of another word, or a string representing a unit.
+ * @param startIndex The index to start searching for the needle at.
+ * @return A map with two values:
+ *         <pre>
+ *         {
+ *             value: true/false/string (true if a whole word, false if part of another word, or a string representing a unit),
+ *             index: the index of the match, maybe
+ *         }
+ *         </pre>
  */
-function wholeWordTest(haystack, needle)
+function wholeWordTest(haystack, needle, startIndex)
 {
-	var tIndex = haystack.indexOf(needle);
+	var tIndex = haystack.indexOf(needle, startIndex);
 	var unit = null;
+	var retval = { value: false, index: tIndex };
 
 	// 2 immediately preceeds white space or one of the units words
 
@@ -353,29 +384,39 @@ function wholeWordTest(haystack, needle)
 			var currencyMatches = needle.match(currencyRegex);
 			if (currencyMatches === null || currencyMatches.length === 0 || !punctuationRegex.test(nextChar))
 			{
-				return false;
+				return retval;
 			}
 
 			unit = currencyMap[currencyMatches[0]];
+			retval.value = unit;
 		}
 	}
 
 	// 1 immediately follows white space or is at the beggining of the text
 
 	// 1a it's the first thing in the haystack
-	if (tIndex === 0) {
-		return (unit != null) ? unit : true;
-	}
-
-	// 1b immediately follows white space or a minus sign preceeded by white space
-	var previousChar = haystack.charAt(tIndex - 1);
-	whiteSpaceOrMinusSignRegex.lastIndex = 0;
-	if (whiteSpaceOrMinusSignRegex.test(previousChar))
+	if (tIndex === 0)
 	{
-		return (unit != null) ? unit : true;
+		if (unit === null)
+		{
+			retval.value = true;
+		}
+		return retval;
 	}
 
-	return false;
+	// 1b immediately follows white space or other number boundary
+	var previousChar = haystack.charAt(tIndex - 1);
+	numBoundaryRegex.lastIndex = 0;
+	if (numBoundaryRegex.test(previousChar))
+	{
+		if (unit === null)
+		{
+			retval.value = true;
+		}
+		return retval;
+	}
+
+	return retval;
 }
 
 /**
@@ -392,10 +433,10 @@ function wholeWordTest(haystack, needle)
  * 
  * @param haystack The string to search for needle within.
  * @param needle The value to search for. Will match {@link #numbersMaybeWithCurrencyRegex}.
- * @return An array of arrays, with matches/positions/units:
+ * @return An array of match objects, with matches/positions/lengths/units:
  *         <pre>
  *         [
- *             [ "match", position in element node, "unit word" ],
+ *             { match:"match", startIndex:position in element node, length:character count in literal text, units:"unit word" },
  *             ...
  *         ]
  *         </pre>
@@ -415,13 +456,15 @@ function findUnitsForWholeWord(haystack, needle, index)
 	var currencyMatches = needle.match(currencyRegex);
 	if (currencyMatches !== null && currencyMatches.length > 0)
 	{
-		var currency = currencyMatches[0];
-		var match = needle.substr(currency.length) + " " + currencyMap[currency];
-		var retval = [
-			[ match, nextIndex, currencyMap[currency] ]
-		];
-		retval = retval.concat(findUnitsForWholeWord(haystack, needle, nextIndex + needle.length));
-		return retval;
+		var currencyMatch = currencyMatches[0];
+		var currencyUnit = currencyMap[currencyMatch];
+		var match = needle.substr(currencyMatch.length) + " " + currencyUnit;
+		return [{
+			"match": match,
+			"startIndex": nextIndex,
+			"length": needle.length,
+			"units": currencyUnit
+		}];
 	}
 
 	// unit check (case: number "unit word")
@@ -433,11 +476,12 @@ function findUnitsForWholeWord(haystack, needle, index)
 	{
 		var unitPos = normalize(haystack).indexOf(normalize(unit), nextIndex);
 		var match = haystack.substr(nextIndex, unitPos + unit.length - nextIndex);
-		var retval = [
-			[ match, nextIndex, unit ]
-		];
-		retval = retval.concat(findUnitsForWholeWord(haystack, needle, nextIndex + match.length));
-		return retval;
+		return [{
+			"match": match,
+			"startIndex": nextIndex,
+			"length": (unitPos - nextIndex) + unit.length,
+			"units": unit
+		}];
 	}
 
 	return [];
@@ -455,7 +499,7 @@ function findUnitsForWholeWord(haystack, needle, index)
  * @return An array of match sets. Each match set is an array with the following values:
  *         <pre>
  *         [
- *             [ "match", position in element node, "unit word", element node ],
+ *             { match:"match", startIndex:position in element node, length:character count in literal text, units:"unit word", element:element node },
  *             ...
  *         ]
  *         </pre>
@@ -479,26 +523,36 @@ function findNumbers(element)
 		{
 			return null;
 		}
+
+		// find number matches
 		numbersMaybeWithCurrencyRegex.lastIndex = 0;
-		var numberMatches = text.match(numbersMaybeWithCurrencyRegex);
-		if (numberMatches == null || numberMatches == undefined || numberMatches.length == 0)
-		{
-			return null;
-		}
-		numberMatches = numberMatches.filter(onlyUnique);
+		numbersInRatioRegex.lastIndex = 0;
+		var regularNumberMatches = text.match(numbersMaybeWithCurrencyRegex);
+		var numbersInRatioMatches = text.match(numbersInRatioRegex);
+		var numberMatches = [];
+		numberMatches = (regularNumberMatches !== null) ? numberMatches.concat(regularNumberMatches) : numberMatches;
+		numberMatches = (numbersInRatioMatches !== null) ? numberMatches.concat(numbersInRatioMatches) : numberMatches;
+		numberMatches = numberMatches.sort();
 
 		// verify the match is its own word and maybe associated units
 		var unit = null;
+		var prevValue = "";
+		var prevIndex = 0;
 		var numberMatchesWithPositionAndUnits = numberMatches.map(function(value)
 		{
-			var wholeWordTestResults = wholeWordTest(text, value);
-			if (wholeWordTestResults === false || wholeWordTestResults === null)
+			var searchIndex = (normalize(prevValue) === normalize(value)) ? prevIndex + 1 : 0;
+			var wholeWordTestResults = wholeWordTest(text, value, searchIndex);
+			var wholeWordTestValue = wholeWordTestResults.value;
+			prevIndex = wholeWordTestResults.index;
+			prevValue = value;
+
+			if (wholeWordTestValue === false || wholeWordTestValue === null)
 			{
 				return null;
 			}
-			else if (wholeWordTestResults === true)
+			else if (wholeWordTestValue === true)
 			{
-				var unitsForWholeWord = findUnitsForWholeWord(text, value, 0);
+				var unitsForWholeWord = findUnitsForWholeWord(text, value, prevIndex);
 				if (unitsForWholeWord.length > 0)
 				{
 					return unitsForWholeWord;
@@ -507,12 +561,17 @@ function findNumbers(element)
 			}
 			else
 			{
-				unit = wholeWordTestResults;
+				unit = wholeWordTestValue;
 				var valuePos = text.indexOf(value);
 				var valueStr = text.substr(valuePos);
 				var unitPos = normalize(valueStr).indexOf(normalize(unit));
 				var match = valueStr.substr(0, unitPos + unit.length);
-				return [[match, valuePos, unit]];
+				return [{
+					"match": match,
+					"startIndex": valuePos,
+					"length": (unitPos - valuePos) + unit.length,
+					"units": unit
+				}];
 			}
 		});
 		numberMatchesWithPositionAndUnits = numberMatchesWithPositionAndUnits.filter(function(a)
@@ -535,7 +594,7 @@ function findNumbers(element)
 		// add the element reference to each match
 		collapsedMatches.forEach(function(a)
 		{
-			a.push(element);
+			a["element"] = element;
 		});
 
 		return [collapsedMatches];
@@ -562,9 +621,9 @@ function findNumbers(element)
  * Filters the results from {@link #findNumbers(...)} to only contain unique unit/number
  * combinations.
  * 
- * @return An array of matches. Each match is an array with the following values:
+ * @return An array of matches. Each match is an object with the following values:
  *         <pre>
- *         [ "match", position in element node, "unit word", element node ]
+ *         { match:"match", startIndex:position in element node, length:character count in literal text, units:"unit word", element:element node }
  *         </pre>
  */
 function findUniqueNumbers()
@@ -582,13 +641,13 @@ function findUniqueNumbers()
 	var matchTexts = [];
 	matches.forEach(function(a)
 	{
-		matchTexts.push(normalize(a[0]));
+		matchTexts.push(normalize(a["match"]));
 	});
 
 	// filter to only include the first instance of each match text
 	matches = matches.filter(function(value, index, self)
-	{ 
-	    return matchTexts.indexOf(normalize(value[0])) === index;
+	{
+	    return matchTexts.indexOf(normalize(value["match"])) === index;
 	});
 
 	return matches;
