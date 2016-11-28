@@ -665,6 +665,3 @@ function findUniqueNumbers()
 
 	return matches;
 }
-
-console.log("hi");
-console.log(findUniqueNumbers());
