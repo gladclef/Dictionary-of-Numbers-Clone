@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["*://*/*", "file:///*/*"],
-      "js": ["Dictionary of Numbers Clone.js"]
+      "js": ["Wolfram AppId.js", "Wolfram Requests.js", "Page Parser.js", "Dictionary of Numbers Clone.js"]
     }
   ]
 }
